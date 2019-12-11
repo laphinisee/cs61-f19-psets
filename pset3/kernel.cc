@@ -65,7 +65,7 @@ void kernel(const char* command) {
     console_clear();
 
     // (re-)initialize kernel page table
-    vmiter it(kernel_pagetable)
+    vmiter it(kernel_pagetable);
     for (; it.va() < PROC_START_ADDR; it += PAGESIZE) {
         it.map(it.va(), PTE_P | PTE_W);
     }
