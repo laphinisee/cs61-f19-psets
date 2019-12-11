@@ -327,6 +327,8 @@ uintptr_t syscall(regstate* regs) {
 //    in `u-lib.hh` (but in the handout code, it does not).
 
 int syscall_page_alloc(uintptr_t addr) {
+    vmiter it(current->pagetable, addr);
+    assert(it.user());
     assert(!pages[addr / PAGESIZE].used());
     pages[addr / PAGESIZE].refcount = 1;
     memset((void*) addr, 0, PAGESIZE);
