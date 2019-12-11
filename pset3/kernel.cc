@@ -65,9 +65,12 @@ void kernel(const char* command) {
     console_clear();
 
     // (re-)initialize kernel page table
-    for (vmiter it(kernel_pagetable);
-         it.va() < MEMSIZE_PHYSICAL;
-         it += PAGESIZE) {
+    vmiter it(kernel_pagetable)
+    for (; it.va() < PROC_START_ADDR; it += PAGESIZE) {
+        it.map(it.va(), PTE_P | PTE_W);
+    }
+
+    for (; it.va() < MEMSIZE_PHYSICAL; it += PAGESIZE) {
         if (it.va() != 0) {
             it.map(it.va(), PTE_P | PTE_W | PTE_U);
         } else {
@@ -75,6 +78,8 @@ void kernel(const char* command) {
             it.map(it.va(), 0);
         }
     }
+    vmiter console_it(kernel_pagetable, CONSOLE_ADDR);
+    console_it.map(console_it.va(), PTE_P | PTE_W | PTE_U);
 
     // set up process descriptors
     for (pid_t i = 0; i < NPROC; i++) {
