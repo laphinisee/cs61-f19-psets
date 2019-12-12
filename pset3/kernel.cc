@@ -155,13 +155,13 @@ void kfree(void* kptr) {
 void process_setup(pid_t pid, const char* program_name) {
     init_process(&ptable[pid], 0);
 
-    x86_64_pagetable *new_pagetable = kalloc(PAGESIZE);
+    x86_64_pagetable *new_pagetable = (x86_64_pagetable *)kalloc(PAGESIZE);
     memset(new_pagetable, 0, PAGESIZE);
 
     vmiter kernel_it(kernel_pagetable, 0);
     vmiter process_it(new_pagetable, 0);
-    for (; kernel_it < PROC_START_ADDR; kernel_it += PAGESIZE, process_it += PAGESIZE) {
-        process_it.map(kernel_it.va(), PTE_P | PTE_W);
+    for (; kernel_it.va() < PROC_START_ADDR; kernel_it += PAGESIZE, process_it += PAGESIZE) {
+        process_it.map(kernel_it.pa(), kernel_it.perm());
     }
 
     // initialize process page table
@@ -177,6 +177,8 @@ void process_setup(pid_t pid, const char* program_name) {
              a += PAGESIZE) {
             assert(!pages[a / PAGESIZE].used());
             pages[a / PAGESIZE].refcount = 1;
+            // need to map in the pages of memory used for text and data sections
+	        vmiter(new_pagetable, a).map(a, PTE_P | PTE_U | PTE_W * loader.writable());
         }
     }
 
@@ -193,6 +195,8 @@ void process_setup(pid_t pid, const char* program_name) {
     uintptr_t stack_addr = PROC_START_ADDR + PROC_SIZE * pid - PAGESIZE;
     assert(!pages[stack_addr / PAGESIZE].used());
     pages[stack_addr / PAGESIZE].refcount = 1;
+    // need to map in the page of memory for the stack
+    vmiter(new_pagetable, stack_addr).map(stack_addr, PTE_P | PTE_W | PTE_U);
     ptable[pid].regs.reg_rsp = stack_addr + PAGESIZE;
 
     // mark process as runnable
@@ -343,6 +347,8 @@ int syscall_page_alloc(uintptr_t addr) {
     }
     assert(!pages[addr / PAGESIZE].used());
     pages[addr / PAGESIZE].refcount = 1;
+    // Need to map this new page as well.
+    vmiter(current->pagetable, addr).map(addr, PTE_P | PTE_U | PTE_W);
     memset((void*) addr, 0, PAGESIZE);
     return 0;
 }
