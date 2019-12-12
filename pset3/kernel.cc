@@ -336,8 +336,11 @@ uintptr_t syscall(regstate* regs) {
 //    in `u-lib.hh` (but in the handout code, it does not).
 
 int syscall_page_alloc(uintptr_t addr) {
-    vmiter it(current->pagetable, addr);
-    assert(it.user());
+    // Want to check that addr is within the user space
+    // We can't use vmiter.user() because the page has not been mapped / allocated yet.
+    if (addr < PROC_START_ADDR || addr > MEMSIZE_VIRTUAL) {
+        return -1;
+    }
     assert(!pages[addr / PAGESIZE].used());
     pages[addr / PAGESIZE].refcount = 1;
     memset((void*) addr, 0, PAGESIZE);
