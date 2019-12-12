@@ -155,8 +155,17 @@ void kfree(void* kptr) {
 void process_setup(pid_t pid, const char* program_name) {
     init_process(&ptable[pid], 0);
 
+    x86_64_pagetable *new_pagetable = kalloc(PAGESIZE);
+    memset(new_pagetable, 0, PAGESIZE);
+
+    vmiter kernel_it(kernel_pagetable, 0);
+    vmiter process_it(new_pagetable, 0);
+    for (; kernel_it < PROC_START_ADDR; kernel_it += PAGESIZE, process_it += PAGESIZE) {
+        process_it.map(kernel_it.va(), PTE_P | PTE_W);
+    }
+
     // initialize process page table
-    ptable[pid].pagetable = kernel_pagetable;
+    ptable[pid].pagetable = new_pagetable;
 
     // load the program
     program_loader loader(program_name);
